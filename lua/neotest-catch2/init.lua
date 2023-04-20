@@ -64,20 +64,28 @@ function adapter.build_spec(args)
 	local position = args.tree:data()
 	local command = { "build/tests/bin/testing", "-r", "xml", "-#" }
 	if position.type == "dir" then
-    else
-	    local fname = position.path:match(".+/([^/]+)%.%w+$")
-	    local spec = "[#" .. fname .. "]"
-        if position.type == "file" then
-	    elseif position.type == "test" then
-		    spec = spec .. position.name
-        end
-	    table.insert(command, spec)
+	else
+		local fname = position.path:match(".+/([^/]+)%.%w+$")
+		local spec = "[#" .. fname .. "]"
+		if position.type == "file" then
+		elseif position.type == "test" then
+			spec = spec .. position.name
+		end
+		table.insert(command, spec)
 	end
 
 	return {
 		command = table.concat(command, " "),
 		cwd = adapter.root(position.path),
 	}
+end
+
+local function xml_pairs(xml_node)
+	if #xml_node == 0 then
+		return pairs({ xml_node })
+	else
+		return pairs(xml_node)
+	end
 end
 
 function adapter.results(spec, result)
@@ -89,16 +97,9 @@ function adapter.results(spec, result)
 	end)
 
 	local root = xml.parse(data)
-
-	local tests
-	if #root.Catch.Group.TestCase == 0 then
-		tests = { root.Catch.Group.TestCase }
-	else
-		tests = root.Catch.Group.TestCase
-	end
 	print("spec = ", vim.inspect(spec))
 
-	for _, testcase in pairs(tests) do
+	for _, testcase in xml_pairs(root.Catch.Group.TestCase) do
 		print("testcase = ", vim.inspect(testcase))
 		local name = testcase._attr.filename .. '::"' .. testcase._attr.name .. '"'
 
@@ -107,12 +108,23 @@ function adapter.results(spec, result)
 				status = "passed",
 			}
 		else
+			local message = "Expression: "
+				.. testcase.Expression.Original
+				.. ", expanded: "
+				.. testcase.Expression.Expanded
+			local errors = {}
+			for _, error in xml_pairs(testcase.Expression) do
+				if error._attr.filename == testcase._attr.filename then
+					table.insert(errors, {
+						message = message,
+						line = tonumber(error._attr.line) - 1,
+					})
+				end
+			end
 			results[name] = {
 				status = "failed",
-				short = "Expression: "
-					.. testcase.Expression.Original
-					.. ", expanded: "
-					.. testcase.Expression.Expanded,
+				short = message,
+				errors = errors,
 			}
 		end
 
