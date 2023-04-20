@@ -63,14 +63,16 @@ function adapter.build_spec(args)
 	print("args = ", vim.inspect(args))
 	local position = args.tree:data()
 	local command = { "build/tests/bin/testing", "-r", "xml", "-#" }
-    local fname = position.path:match(".+/([^/]+)%.%w+$")
-    local spec = "[#" .. fname .. "]"
-	if position.type == "file" then
-	elseif position.type == "test" then
-        spec = spec .. position.name
-		-- table.insert(command, position.name)
+	if position.type == "dir" then
+    else
+	    local fname = position.path:match(".+/([^/]+)%.%w+$")
+	    local spec = "[#" .. fname .. "]"
+        if position.type == "file" then
+	    elseif position.type == "test" then
+		    spec = spec .. position.name
+        end
+	    table.insert(command, spec)
 	end
-    table.insert(command, spec)
 
 	return {
 		command = table.concat(command, " "),
