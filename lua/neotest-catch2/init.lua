@@ -48,7 +48,7 @@ end
 function adapter.discover_positions(path)
 	local query = [[
         ((call_expression
-            function: (identifier) @func_name (#match? @func_name "^TEST_CASE$")
+            function: (identifier) @func_name (#eq? @func_name "TEST_CASE")
             arguments: (argument_list (_) @test.name)
         )) @test.definition 
     ]]
@@ -80,7 +80,7 @@ end
 
 function adapter.build_spec(args)
 	local sources = cmake.get_executable_sources()
-    local build_dir = cmake.get_build_dir().filename
+	local build_dir = cmake.get_build_dir().filename
 	if sources == nil then
 		return {}
 	end
@@ -95,9 +95,9 @@ function adapter.build_spec(args)
 		local specs = {}
 		for target, _ in pairs(files) do
 			table.insert(specs, {
-                command = target .. " -r xml",
-                cwd = build_dir
-            })
+				command = target .. " -r xml",
+				cwd = build_dir,
+			})
 		end
 		print("specs = ", vim.inspect(specs))
 		return specs
@@ -117,10 +117,7 @@ function adapter.results(spec, result)
 	end)
 
 	local root = xml.parse(data)
-	-- print("spec = ", vim.inspect(spec))
-
 	for _, testcase in xml_pairs(root.Catch.Group.TestCase) do
-		-- print("testcase = ", vim.inspect(testcase))
 		local name = testcase._attr.filename .. '::"' .. testcase._attr.name .. '"'
 
 		if testcase.OverallResult._attr.success == "true" then
