@@ -60,26 +60,49 @@ function adapter.discover_positions(path)
 	return tree
 end
 
-function adapter.build_spec(args)
-    local sources = cmake.get_executable_sources()
-    -- print("args = ", vim.inspect(args))
-	local position = args.tree:data()
-	local command = { "build/tests/bin/testing", "-r", "xml", "-#" }
-	if position.type == "dir" then
-	else
-		local fname = position.path:match(".+/([^/]+)%.%w+$")
-		local spec = "[#" .. fname .. "]"
-		if position.type == "file" then
-		elseif position.type == "test" then
-			spec = spec .. position.name
-		end
-		table.insert(command, spec)
+local function get_file_spec(sources, position, build_dir)
+	if sources[position.path] == nil then
+		return {}
 	end
-
+	local command = { sources[position.path], "-r", "xml", "-#" }
+	local fname = position.path:match(".+/([^/]+)%.%w+$")
+	local spec = "[#" .. fname .. "]"
+	if position.type == "file" then
+	elseif position.type == "test" then
+		spec = spec .. position.name
+	end
+	table.insert(command, spec)
 	return {
 		command = table.concat(command, " "),
-		cwd = adapter.root(position.path),
+		cwd = build_dir,
 	}
+end
+
+function adapter.build_spec(args)
+	local sources = cmake.get_executable_sources()
+    local build_dir = cmake.get_build_dir().filename
+	if sources == nil then
+		return {}
+	end
+	local position = args.tree:data()
+	if position.type == "dir" then
+		local files = {}
+		for source, target in pairs(sources) do
+			if adapter.is_test_file(source) then
+				files[target] = 1
+			end
+		end
+		local specs = {}
+		for target, _ in pairs(files) do
+			table.insert(specs, {
+                command = target .. " -r xml",
+                cwd = build_dir
+            })
+		end
+		print("specs = ", vim.inspect(specs))
+		return specs
+	end
+	return get_file_spec(sources, position, build_dir)
 end
 
 local function xml_pairs(xml_node)

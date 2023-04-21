@@ -66,9 +66,13 @@ local function get_codemodel_targets(reply_dir)
 	return codemodel_json["configurations"][1]["targets"]
 end
 
-function M.get_executable_sources()
+function M.get_build_dir()
 	local project_config = ProjectConfig.new()
-	local build_dir = parse_dir(project_config.cmake.build_dir, project_config.cmake.build_type)
+	return parse_dir(project_config.cmake.build_dir, project_config.cmake.build_type)
+end
+
+function M.get_executable_sources()
+	local build_dir = M.get_build_dir()
     local source_dir = Path:new(vim.loop.cwd())
 	if not build_dir:is_dir() then
 		utils.notify(
@@ -89,23 +93,20 @@ function M.get_executable_sources()
 		local target_info = get_target_info(target, reply_dir)
 		local target_name = target_info["name"]
 		if target_name:find("_autogen") == nil and target_info["type"] == "EXECUTABLE" then
-			local sources = {}
+			local target_path = Path:new(target_info["artifacts"][1]["path"])
+			if not target_path:is_absolute() then
+				target_path = build_dir / target_path
+			end
 			for _, source in ipairs(target_info["sources"]) do
                 local source_path = Path:new(source["path"])
                 if not source_path:is_absolute() then
                     source_path = source_dir / source_path
                 end
-				table.insert(sources, source_path.filename)
+                targets[source_path.filename] = target_path.filename
 			end
-			local target_path = Path:new(target_info["artifacts"][1]["path"])
-			if not target_path:is_absolute() then
-				target_path = build_dir / target_path
-			end
-			targets[target_name] = { sources = sources, target_path = target_path.filename }
 		end
 	end
 	print("targets = ", vim.inspect(targets))
-
 	return targets
 end
 
