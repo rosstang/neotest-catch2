@@ -6,6 +6,7 @@ local xml = require("neotest.lib.xml")
 local context_manager = require("plenary.context_manager")
 local with = context_manager.with
 local open = context_manager.open
+local cmake = require("neotest-catch2.cmake")
 
 local adapter = { name = "neotest-catch2" }
 
@@ -60,7 +61,8 @@ function adapter.discover_positions(path)
 end
 
 function adapter.build_spec(args)
-	print("args = ", vim.inspect(args))
+    local sources = cmake.get_executable_sources()
+    -- print("args = ", vim.inspect(args))
 	local position = args.tree:data()
 	local command = { "build/tests/bin/testing", "-r", "xml", "-#" }
 	if position.type == "dir" then
@@ -81,26 +83,21 @@ function adapter.build_spec(args)
 end
 
 local function xml_pairs(xml_node)
-	if #xml_node == 0 then
-		return pairs({ xml_node })
-	else
-		return pairs(xml_node)
-	end
+	return pairs(#xml_node == 0 and { xml_node } or xml_node)
 end
 
 function adapter.results(spec, result)
 	local results = {}
-
 	local data
 	with(open(result.output, "r"), function(reader)
 		data = reader:read("*a")
 	end)
 
 	local root = xml.parse(data)
-	print("spec = ", vim.inspect(spec))
+	-- print("spec = ", vim.inspect(spec))
 
 	for _, testcase in xml_pairs(root.Catch.Group.TestCase) do
-		print("testcase = ", vim.inspect(testcase))
+		-- print("testcase = ", vim.inspect(testcase))
 		local name = testcase._attr.filename .. '::"' .. testcase._attr.name .. '"'
 
 		if testcase.OverallResult._attr.success == "true" then
@@ -108,9 +105,9 @@ function adapter.results(spec, result)
 				status = "passed",
 			}
 		else
-			local message = "Expression: "
+			local message = "FAILED: "
 				.. testcase.Expression.Original
-				.. ", expanded: "
+				.. ", with expansion: "
 				.. testcase.Expression.Expanded
 			local errors = {}
 			for _, error in xml_pairs(testcase.Expression) do
@@ -131,10 +128,12 @@ function adapter.results(spec, result)
 		local output_file = async.fn.tempname() .. ".stdout"
 		results[name]["output"] = output_file
 		with(open(output_file, "a"), function(writer)
-			if testcase.OverallResult.StdOut ~= nil then
-				writer:write(testcase.OverallResult.StdOut)
-			else
-				writer:write("")
+			for _, out in pairs({
+				{ "STDOUT", testcase.OverallResult.StdOut },
+				{ "STDERR", testcase.OverallResult.StdErr },
+			}) do
+				writer:write(out[1] .. "\n")
+				writer:write((out[2] == nil and "" or out[2]) .. "\n")
 			end
 		end)
 	end
