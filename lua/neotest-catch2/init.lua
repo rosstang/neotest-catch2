@@ -81,6 +81,7 @@ end
 local function get_dap_strategy(spec, args)
 	if args.strategy == "dap" then
 		local program = table.remove(spec.command, 1)
+        table.insert(spec.command, "-b")
 		return {
 			name = "Launch",
 			type = "lldb",
@@ -171,7 +172,7 @@ function adapter.results(spec, result)
 			}
 		end
 
-		local output_file = async.fn.tempname() .. ".stdout"
+		local output_file = async.fn.tempname() .. ".out"
 		results[name]["output"] = output_file
 		with(open(output_file, "a"), function(writer)
 			for _, out in pairs({
