@@ -73,8 +73,27 @@ local function get_file_spec(sources, position, build_dir)
 	end
 	table.insert(command, spec)
 	return {
-		command = table.concat(command, " "),
+		command = command,
 		cwd = build_dir,
+	}
+end
+
+local function get_dap_strategy(spec, args)
+	if args.strategy == "dap" then
+		local program = table.remove(spec.command, 1)
+		return {
+			name = "Launch",
+			type = "lldb",
+			request = "launch",
+			program = program,
+			cwd = spec.cwd,
+			stopOnEntry = false,
+			args = spec.command,
+		}
+	end
+	return {
+		command = table.concat(spec.command, " "),
+		cwd = spec.cwd,
 	}
 end
 
@@ -85,6 +104,7 @@ function adapter.build_spec(args)
 		return {}
 	end
 	local position = args.tree:data()
+	local specs = {}
 	if position.type == "dir" then
 		local files = {}
 		for source, target in pairs(sources) do
@@ -92,17 +112,23 @@ function adapter.build_spec(args)
 				files[target] = 1
 			end
 		end
-		local specs = {}
 		for target, _ in pairs(files) do
 			table.insert(specs, {
-				command = target .. " -r xml",
+				command = { target, "-r", "xml" },
 				cwd = build_dir,
 			})
 		end
-		print("specs = ", vim.inspect(specs))
-		return specs
-	end
-	return get_file_spec(sources, position, build_dir)
+    else
+	    table.insert(specs, get_file_spec(sources, position, build_dir))
+    end
+    local specs1 = {}
+    for _, s in ipairs(specs) do
+        table.insert(specs1, {
+            strategy = get_dap_strategy(s, args)
+        })
+    end
+	print("specs = ", vim.inspect(specs1))
+    return specs1
 end
 
 local function xml_pairs(xml_node)
