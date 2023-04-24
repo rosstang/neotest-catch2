@@ -60,47 +60,49 @@ function adapter.discover_positions(path)
 	return tree
 end
 
-local function get_file_spec(sources, position, build_dir)
+local function get_file_spec(sources, position, dir)
 	if sources[position.path] == nil then
 		return {}
 	end
 	local command = { sources[position.path], "-r", "xml", "-#" }
 	local fname = position.path:match(".+/([^/]+)%.%w+$")
 	local spec = "[#" .. fname .. "]"
-	if position.type == "file" then
-	elseif position.type == "test" then
+	if position.type == "test" then
 		spec = spec .. position.name
 	end
 	table.insert(command, spec)
 	return {
 		command = command,
-		cwd = build_dir,
+		cwd = dir,
 	}
 end
 
 local function get_dap_strategy(spec, args)
-	if args.strategy == "dap" then
-		local program = table.remove(spec.command, 1)
-        table.insert(spec.command, "-b")
+	if args.strategy ~= "dap" then
 		return {
+			command = table.concat(spec.command, " "),
+			cwd = spec.cwd,
+		}
+	end
+	local program = table.remove(spec.command, 1)
+	table.insert(spec.command, "-b")
+	return {
+		strategy = {
 			name = "Launch",
-			type = "lldb",
+			type = "codelldb",
 			request = "launch",
 			program = program,
 			cwd = spec.cwd,
 			stopOnEntry = false,
 			args = spec.command,
-		}
-	end
-	return {
-		command = table.concat(spec.command, " "),
-		cwd = spec.cwd,
+		},
 	}
 end
 
 function adapter.build_spec(args)
 	local sources = cmake.get_executable_sources()
-	local build_dir = cmake.get_build_dir().filename
+	local dir = cmake.get_build_dir().filename
+	-- local dir = vim.loop.cwd()
 	if sources == nil then
 		return {}
 	end
@@ -116,20 +118,18 @@ function adapter.build_spec(args)
 		for target, _ in pairs(files) do
 			table.insert(specs, {
 				command = { target, "-r", "xml" },
-				cwd = build_dir,
+				cwd = dir,
 			})
 		end
-    else
-	    table.insert(specs, get_file_spec(sources, position, build_dir))
-    end
-    local specs1 = {}
-    for _, s in ipairs(specs) do
-        table.insert(specs1, {
-            strategy = get_dap_strategy(s, args)
-        })
-    end
+	else
+		table.insert(specs, get_file_spec(sources, position, dir))
+	end
+	local specs1 = {}
+	for _, s in ipairs(specs) do
+		table.insert(specs1, get_dap_strategy(s, args))
+	end
 	print("specs = ", vim.inspect(specs1))
-    return specs1
+	return specs1
 end
 
 local function xml_pairs(xml_node)

@@ -4,6 +4,7 @@ local scandir = require("plenary.scandir")
 local ProjectConfig = require("tasks.project_config")
 local os = require("ffi").os:lower()
 
+-- Mainly a copy and modify from https://github.com/Shatur/neovim-tasks/blob/master/lua/tasks/module/cmake.lua
 M = {}
 
 --- Parses build dir expression.
@@ -73,7 +74,7 @@ end
 
 function M.get_executable_sources()
 	local build_dir = M.get_build_dir()
-    local source_dir = Path:new(vim.loop.cwd())
+	local source_dir = Path:new(vim.loop.cwd())
 	if not build_dir:is_dir() then
 		utils.notify(
 			string.format('Build directory "%s" does not exist, you need to run "configure" task first', build_dir),
@@ -98,11 +99,11 @@ function M.get_executable_sources()
 				target_path = build_dir / target_path
 			end
 			for _, source in ipairs(target_info["sources"]) do
-                local source_path = Path:new(source["path"])
-                if not source_path:is_absolute() then
-                    source_path = source_dir / source_path
-                end
-                targets[source_path.filename] = target_path.filename
+				local source_path = Path:new(source["path"])
+				if not source_path:is_absolute() then
+					source_path = source_dir / source_path
+				end
+				targets[source_path.filename] = target_path.filename
 			end
 		end
 	end
