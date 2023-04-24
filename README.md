@@ -1,20 +1,13 @@
 # neotest-catch2
+Neotest adapter for c++. Supports catch2 framework, and cmake needs to be used.
 
-# Installation
-- Install it with packer (or any other package manager)
-```lua
-use {
-    "rosstang/neotest-catch2",
-    config = function()
-        require("dimit").setup()
-    end,
-}
-```
+Requires nvim-treesitter and the parser for c++
 
-# Configuration
-- default config
-```lua
-M.config = {
-}
-```
+require("neotest").setup({
+  adapters = {
+    require("neotest-catch2")(),
+  }
+})
 
+You can optionally supply configuration settings:
+...
