@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Catch name="testing">
+  <Group name="testing">
+    <TestCase name="Client testing" filename="/home/ross/workspace/cpp-template/tests/test_all.cpp" line="11">
+      <Section name="Test SendContent" filename="/home/ross/workspace/cpp-template/tests/test_all.cpp" line="17">
+        <OverallResults successes="5" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="Test SendBuffer" filename="/home/ross/workspace/cpp-template/tests/test_all.cpp" line="30">
+        <OverallResults successes="5" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="Test IsOk" filename="/home/ross/workspace/cpp-template/tests/test_all.cpp" line="43">
+        <OverallResults successes="2" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="Test Close" filename="/home/ross/workspace/cpp-template/tests/test_all.cpp" line="51">
+        <OverallResults successes="2" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="Test GetName" filename="/home/ross/workspace/cpp-template/tests/test_all.cpp" line="59">
+        <OverallResults successes="3" failures="0" expectedFailures="0"/>
+      </Section>
+      <OverallResult success="true">
+        <StdOut>
+\x11@\x14[\x05
+34\x15\x1F\xB4U
+14\x15\x1F\xB4U
+\x114\x15\x1F\xB4U
+74\x15\x1F\xB4U
+        </StdOut>
+      </OverallResult>
+    </TestCase>
+    <TestCase name="Real Client" filename="/home/ross/workspace/cpp-template/tests/test_all.cpp" line="69">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Messages Exporter" filename="/home/ross/workspace/cpp-template/tests/test_all.cpp" line="165">
+      <OverallResult success="true">
+        <StdOut>
+{
+    "class": "Foo1",
+    "fields": [
+        {
+            "class": "Foo",
+            "fields": [
+                {
+                    "class": "int",
+                    "field": "X",
+                    "size": 4
+                },
+                {
+                    "class": "int",
+                    "field": "Y",
+                    "size": 4
+                },
+                {
+                    "class": "string",
+                    "field": "A",
+                    "size": 32
+                }
+            ]
+        },
+        {
+            "class": "int",
+            "field": "Z",
+            "size": 4
+        }
+    ]
+}
+        </StdOut>
+      </OverallResult>
+    </TestCase>
+    <TestCase name="Test type descriptor" filename="/home/ross/workspace/cpp-template/tests/test_all.cpp" line="172">
+      <OverallResult success="true">
+        <StdOut>
+Foo: { X: 5,  Y: 10,  A: hello, }
+Foo1: { : Foo: { X: 5,  Y: 10,  A: hello, },  Z: 15, }
+        </StdOut>
+      </OverallResult>
+    </TestCase>
+    <TestCase name="Failing one - bool" tags="[t1][t2]" filename="/home/ross/workspace/cpp-template/tests/test_all.cpp" line="180">
+      <Expression success="false" type="REQUIRE" filename="/home/ross/workspace/cpp-template/tests/test_all.cpp" line="182">
+        <Original>
+          false
+        </Original>
+        <Expanded>
+          false
+        </Expanded>
+      </Expression>
+      <OverallResult success="false"/>
+    </TestCase>
+    <TestCase name="Failing one - int" tags="[t1][t2]" filename="/home/ross/workspace/cpp-template/tests/test_all.cpp" line="180">
+      <Expression success="false" type="REQUIRE" filename="/home/ross/workspace/cpp-template/tests/test_all.cpp" line="182">
+        <Original>
+          false
+        </Original>
+        <Expanded>
+          false
+        </Expanded>
+      </Expression>
+      <OverallResult success="false"/>
+    </TestCase>
+    <TestCase name="Hello world test" tags="[tag1][tag2]" filename="/home/ross/workspace/cpp-template/tests/test_1.cpp" line="8">
+      <Section name="abc" filename="/home/ross/workspace/cpp-template/tests/test_1.cpp" line="10">
+        <Expression success="false" type="REQUIRE" filename="/home/ross/workspace/cpp-template/tests/test_1.cpp" line="11">
+          <Original>
+            a == 0
+          </Original>
+          <Expanded>
+            100 == 0
+          </Expanded>
+        </Expression>
+        <OverallResults successes="0" failures="1" expectedFailures="0"/>
+      </Section>
+      <OverallResult success="false"/>
+    </TestCase>
+    <TestCase name="Hello world test1" tags="[tag1][tag2]" filename="/home/ross/workspace/cpp-template/tests/test_1.cpp" line="15">
+      <Expression success="false" type="REQUIRE" filename="/home/ross/workspace/cpp-template/tests/test_1.cpp" line="16">
+        <Original>
+          false
+        </Original>
+        <Expanded>
+          false
+        </Expanded>
+      </Expression>
+      <OverallResult success="false"/>
+    </TestCase>
+    <TestCase name="Hello world test2 - bool" tags="[tag1][tag2]" filename="/home/ross/workspace/cpp-template/tests/test_1.cpp" line="19">
+      <Section name="abc" filename="/home/ross/workspace/cpp-template/tests/test_1.cpp" line="22">
+        <OverallResults successes="1" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="B" filename="/home/ross/workspace/cpp-template/tests/test_1.cpp" line="25">
+        <OverallResults successes="0" failures="0" expectedFailures="0"/>
+      </Section>
+      <OverallResult success="true">
+        <StdErr>
+world
+world
+        </StdErr>
+      </OverallResult>
+    </TestCase>
+    <TestCase name="Hello world test3 - bool" tags="[tag1][tag2]" filename="/home/ross/workspace/cpp-template/tests/test_1.cpp" line="29">
+      <Section name="abc" filename="/home/ross/workspace/cpp-template/tests/test_1.cpp" line="31">
+        <OverallResults successes="1" failures="0" expectedFailures="0"/>
+      </Section>
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Hello world test3 - int" tags="[tag1][tag2]" filename="/home/ross/workspace/cpp-template/tests/test_1.cpp" line="29">
+      <Section name="abc" filename="/home/ross/workspace/cpp-template/tests/test_1.cpp" line="31">
+        <OverallResults successes="1" failures="0" expectedFailures="0"/>
+      </Section>
+      <OverallResult success="true"/>
+    </TestCase>
+    <OverallResults successes="22" failures="4" expectedFailures="0"/>
+    <OverallResultsCases successes="7" failures="4" expectedFailures="0"/>
+  </Group>
+  <OverallResults successes="22" failures="4" expectedFailures="0"/>
+  <OverallResultsCases successes="7" failures="4" expectedFailures="0"/>
+</Catch>
