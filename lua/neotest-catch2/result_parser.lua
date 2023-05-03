@@ -21,23 +21,47 @@ local create_simple_handler = function(self, field_name)
 	}
 end
 
+local create_error_handler = function(self, error_name)
+	return {
+		on_start = function(attr)
+			return {
+				filename = attr.filename,
+				line = tonumber(attr.line),
+			}
+		end,
+		on_stop = function(node)
+			local parent = self.nodes_stack[#self.nodes_stack]
+			if parent.errors == nil then
+				parent.errors = {}
+			end
+			local message = error_name .. ": " .. node.text
+			node.text = nil
+			table.insert(parent.errors, {
+				filename = node.filename,
+				line = node.line - 1,
+				message = message,
+			})
+		end,
+	}
+end
+
 M.new = function(use_queue)
 	local self = {}
 	self.handlers = {}
 	self.nodes_stack = {}
-    local add_result
-    if use_queue then
-    	self.results = nio.control.queue()
-        add_result = function(r)
-            print("result = ", vim.inspect(r))
-            self.results.put_nowait(r)
-        end
-    else
-        self.results = {}
-        add_result = function(r)
-            self.results[r.name] = r
-        end
-    end
+	local add_result
+	if use_queue then
+		self.results = nio.control.queue()
+		add_result = function(r)
+			print("result = ", vim.inspect(r))
+			self.results.put_nowait(r)
+		end
+	else
+		self.results = {}
+		add_result = function(r)
+			self.results[r.name] = r
+		end
+	end
 
 	self.handlers.TestCase = {
 		on_start = function(attr)
@@ -83,7 +107,7 @@ M.new = function(use_queue)
 			node.stdout = nil
 			node.stderr = nil
 			node.sections = nil
-            add_result(node)
+			add_result(node)
 		end,
 	}
 
@@ -145,7 +169,7 @@ M.new = function(use_queue)
 			if parent.errors == nil then
 				parent.errors = {}
 			end
-			node.text = ""
+			node.text = nil
 			table.insert(parent.expressions, node)
 			local message = "FAILED: "
 				.. (node.original ~= nil and node.original or "<empty>")
@@ -159,6 +183,8 @@ M.new = function(use_queue)
 		end,
 	}
 
+    self.handlers.FatalErrorCondition = create_error_handler(self, "FatalErrorCondition")
+    self.handlers.Exception = create_error_handler(self, "Exception")
 	self.handlers.StdOut = create_simple_handler(self, "stdout")
 	self.handlers.StdErr = create_simple_handler(self, "stderr")
 	self.handlers.Original = create_simple_handler(self, "original")
