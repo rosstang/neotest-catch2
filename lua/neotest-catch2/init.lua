@@ -2,18 +2,31 @@ local lib = require("neotest.lib")
 local async = require("neotest.async")
 local Path = require("plenary.path")
 local nio = require("nio")
-local xml = require("neotest.lib.xml")
-local context_manager = require("plenary.context_manager")
-local with = context_manager.with
-local open = context_manager.open
 local cmake = require("neotest-catch2.cmake")
+local util = require("neotest-catch2.util")
 local sep = lib.files.sep
 local positions = require("neotest.lib.positions")
+local result_parser = require("neotest-catch2.result_parser")
+local stream_xml = require("neotest-catch2.stream_xml")
 
 local adapter = { name = "neotest-catch2" }
 
-local function get_file_name(path)
-	return path:match(".+/([^/]+)%.%w+$")
+lib.positions.contains = function(parent, child)
+	if parent.type == "dir" then
+		return parent.path == child.path or vim.startswith(child.path, parent.path .. require("neotest.lib.file").sep)
+	end
+	if child.type == "dir" then
+		return false
+	end
+	if parent.type == "file" then
+		return parent.path == child.path
+	end
+	if child.type == "file" then
+		return false
+	end
+
+	return (parent.range[1] <= child.range[1] and parent.range[3] > child.range[3])
+		or (parent.range[1] < child.range[1] and parent.range[3] >= child.range[3])
 end
 
 function adapter.root(dir)
@@ -69,31 +82,12 @@ local parse_state = {
 	stop = 5,
 }
 
-local function trim(s)
-	return (s:gsub("^%s*(.-)%s*$", "%1"))
-end
-
 local function get_file_lines(path)
 	local count = 0
 	for _ in io.lines(path) do
 		count = count + 1
 	end
 	return count
-end
-
-local function treesitter_discover_positions(path)
-	local query = [[
-        ((call_expression
-            function: (identifier) @func_name (#eq? @func_name "TEST_CASE")
-            arguments: (argument_list (string_literal) @test.name)
-        )) @test.definition 
-    ]]
-	local tree = lib.treesitter.parse_positions(path, query, {
-		nested_tests = true,
-		require_namespaces = false,
-	})
-	print("tree = ", vim.inspect(tree))
-	return tree
 end
 
 function adapter.discover_positions(path)
@@ -105,14 +99,14 @@ function adapter.discover_positions(path)
 	if executable == nil then
 		return {}
 	end
-	local filename = get_file_name(path)
+	local filename = util.get_file_name(path)
 	local ret = vim.fn.systemlist(executable .. ' -l -v high -# "[#' .. filename .. ']"')
 	-- print("position = ", vim.inspect(ret))
 	local state = parse_state.header
 	local test_name
 	local tests = {
 		{
-			name = get_file_name(path),
+			name = util.get_file_name_ext(path),
 			type = "file",
 			id = path,
 			path = path,
@@ -125,22 +119,22 @@ function adapter.discover_positions(path)
 			state = parse_state.test_name
 		elseif state == parse_state.test_name then
 			if line:match("^  ") then
-				test_name = '"' .. trim(line) .. '"'
+				test_name = '"' .. util.trim(line) .. '"'
 				state = parse_state.test_file
 			else
 				state = parse_state.stop
 			end
 		elseif state == parse_state.test_file then
-			line = trim(line)
+			line = util.trim(line)
 			local test_file, lineno = line:match("^([^:]+):(%d+)")
-			lineno = tonumber(lineno)
+			lineno = tonumber(lineno) - 1
 			state = parse_state.description
 			table.insert(tests, {
 				name = test_name,
 				type = "test",
 				id = test_file .. "::" .. test_name,
 				path = test_file,
-				range = { lineno, 0, lineno, 5 },
+				range = { lineno, 0, lineno, 0 },
 			})
 		elseif state == parse_state.description then
 			state = parse_state.tag
@@ -148,13 +142,10 @@ function adapter.discover_positions(path)
 			state = parse_state.test_name
 		end
 	end
-	-- print("tests = ", vim.inspect(tests))
 	local tree = positions.parse_tree(tests, {
 		nested_tests = true,
 		require_namespaces = false,
 	})
-	-- treesitter_discover_positions(path)
-	-- print("tree = ", vim.inspect(tree))
 	return tree
 end
 
@@ -164,7 +155,7 @@ local function get_file_spec(sources, position, dir)
 	end
 	local xml_file = async.fn.tempname() .. ".xml"
 	local commands = { sources[position.path], "-r", "xml", "-#", "-o", xml_file }
-	local fname = get_file_name(position.path)
+	local fname = util.get_file_name(position.path)
 	local spec = "[#" .. fname .. "]"
 	if position.type == "test" then
 		spec = spec .. position.name
@@ -180,6 +171,35 @@ end
 local function get_dap_strategy(spec, args)
 	if args.strategy ~= "dap" then
 		spec.command = table.concat(spec.commands, " ")
+		util.touch(spec.xml_file)
+		local stream_events, stop_stream = stream_xml.stream_xml(spec.xml_file)
+		spec.stop_stream = stop_stream
+		spec.stream = function()
+			local parser = result_parser.new(true)
+			nio.run(function()
+				for event in stream_events do
+					stream_xml.dispatch(event, parser)
+				end
+			end, function(success, err)
+				if not success then
+					print("stream parsing xml failure: err = " .. err)
+				end
+			end)
+
+			return function()
+				local results = {}
+                while parser.results.size() > 0 do
+                    local item = parser.results.get_nowait()
+                    results[item.name] = item
+                end
+
+                if #results == 0 then
+                    local item = parser.results.get()
+                    results[item.name] = item
+                end
+				return results
+			end
+		end
 		return spec
 	end
 	local program = table.remove(spec.commands, 1)
@@ -228,98 +248,21 @@ function adapter.build_spec(args)
 	for _, s in ipairs(specs) do
 		table.insert(specs1, get_dap_strategy(s, args))
 	end
-	print("specs = ", vim.inspect(specs1))
 	return specs1
 end
 
-local function xml_pairs(xml_node)
-	return pairs(#xml_node == 0 and { xml_node } or xml_node)
-end
-
 function adapter.results(spec, result)
-	local results = {}
-	local data
+	if spec.stop_stream ~= nil then
+		spec.stop_stream()
+	end
 
+	local results = {}
 	if not lib.files.exists(spec.xml_file) then
 		return results
 	end
 
-	with(open(spec.xml_file, "r"), function(reader)
-		data = reader:read("*a")
-	end)
-
-	local root = xml.parse(data)
-	if root.Catch.Group.TestCase == nil then
-		return results
-	end
-
-	for _, testcase in xml_pairs(root.Catch.Group.TestCase) do
-		local name = testcase._attr.filename .. '::"' .. testcase._attr.name .. '"'
-
-		if testcase.OverallResult._attr.success == "true" then
-			results[name] = {
-				status = "passed",
-			}
-		else
-			local message
-			local errors = {}
-			if testcase.Expression ~= nil then
-				for _, error in xml_pairs(testcase.Expression) do
-					message = "FAILED: " .. error.Original .. ", with expansion: " .. error.Expanded
-					if error._attr.filename == testcase._attr.filename then
-						table.insert(errors, {
-							message = message,
-							line = tonumber(error._attr.line) - 1,
-						})
-					end
-				end
-			elseif testcase.Exception ~= nil or testcase.FatalErrorCondition ~= nil then
-				local error_node = testcase.Exception ~= nil and testcase.Exception or testcase.FatalErrorCondition
-				local msg
-				message = error_node[1]
-				if testcase.FatalErrorCondition ~= nil then
-					msg = "Fatal error ["
-						.. message
-						.. "] for test case file="
-						.. error_node._attr.filename
-						.. ", line="
-						.. error_node._attr.filename
-					vim.notify(msg, vim.log.levels.ERROR)
-				end
-
-				for _, error in xml_pairs(error_node) do
-					if error.attr_ ~= nil then
-						if error._attr.filename == testcase._attr.filename then
-							table.insert(errors, {
-								message = message,
-								line = tonumber(error._attr.line) - 1,
-							})
-						end
-					end
-				end
-			end
-
-			results[name] = {
-				status = "failed",
-				short = message,
-				errors = errors,
-			}
-		end
-
-		local output_file = async.fn.tempname() .. ".out"
-		results[name]["output"] = output_file
-		with(open(output_file, "a"), function(writer)
-			for _, out in pairs({
-				{ "STDOUT", testcase.OverallResult.StdOut },
-				{ "STDERR", testcase.OverallResult.StdErr },
-			}) do
-				writer:write(out[1] .. "\n")
-				writer:write((out[2] == nil and "" or out[2]) .. "\n")
-			end
-		end)
-	end
-
-	print("results = ", vim.inspect(results))
+	local parser = result_parser.new(false)
+	results = stream_xml.parse_xml(spec.xml_file, parser)
 	return results
 end
 
