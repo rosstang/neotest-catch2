@@ -8,7 +8,7 @@ local sep = lib.files.sep
 local positions = require("neotest.lib.positions")
 local result_parser = require("neotest-catch2.result_parser")
 local stream_xml = require("neotest-catch2.stream_xml")
-local catch2 = require("neotest_catch2.catch2_positions")
+local catch2 = require("neotest-catch2.catch2_positions")
 local func = require("plenary.functional")
 
 local adapter = { name = "neotest-catch2" }
