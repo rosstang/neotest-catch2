@@ -107,7 +107,6 @@ function M.get_executable_sources()
 			end
 		end
 	end
-	-- print("targets = ", vim.inspect(targets))
 	return targets
 end
 

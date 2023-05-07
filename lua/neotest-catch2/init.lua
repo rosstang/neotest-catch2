@@ -12,6 +12,12 @@ local func = require("plenary.functional")
 
 local adapter = { name = "neotest-catch2" }
 
+adapter.config = {
+	extension = ".cpp",
+	test_patterns = { "^test_", "_test.cpp$" },
+	dir_blacklist_patterns = { "build", "cmake%-build.*", "external" },
+}
+
 lib.positions.contains = function(parent, child)
 	if parent.type == "dir" then
 		return parent.path == child.path or vim.startswith(child.path, parent.path .. sep)
@@ -53,20 +59,27 @@ function adapter.root(dir)
 end
 
 function adapter.is_test_file(file_path)
-	if not vim.endswith(file_path, ".cpp") then
+	if not vim.endswith(file_path, adapter.config.extension) then
 		return false
 	end
 	local elems = vim.split(file_path, Path.path.sep)
 	local file_name = elems[#elems]
-	return vim.startswith(file_name, "test_") or vim.endswith(file_name, "_test.cpp")
+	for _, p in ipairs(adapter.config.test_patterns) do
+		if file_name:match(p) ~= nil then
+			return true
+		end
+	end
+	return false
 end
 
 local function filter_dir(path, root)
 	root = root:gsub("(%W)", "%%%1")
-	local t = path:match(root .. sep .. "build" .. sep) == nil
-		and path:match(root .. sep .. "cmake--build.*" .. sep) == nil
-		and path:match(root .. sep .. "external" .. sep) == nil
-	return t
+    for _, p in ipairs(adapter.config.dir_blacklist_patterns) do
+        if path:match(root .. sep .. p .. sep) ~= nil then
+            return false
+        end
+    end
+    return true
 end
 
 function adapter.filter_dir(_, rel_path, root)
@@ -78,8 +91,8 @@ local parse_state = {
 	header = 0,
 	test_name = 1,
 	test_file = 2,
-	tag = 4,
-	stop = 5,
+	tag = 3,
+	stop = 4,
 }
 
 local function get_file_lines(path)
@@ -217,7 +230,7 @@ local function get_dap_strategy(args, spec)
 	}
 	spec.command = nil
 	spec.cwd = nil
-    return spec
+	return spec
 end
 
 function adapter.build_spec(args)

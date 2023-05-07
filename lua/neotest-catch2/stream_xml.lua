@@ -10,6 +10,8 @@ local EventType = {
 
 local M = {}
 
+-- parse the whole xml filename, and use handler to handle
+-- the xml elements
 M.parse_xml = function(filename, handler)
 	local file = io.open(filename)
 	if file == nil then
@@ -35,6 +37,8 @@ M.parse_xml = function(filename, handler)
 	return handler.results
 end
 
+-- parse the xml filename with streaming, and convert the start element/stop element/
+-- character data into events put into an event queue
 M.stream_xml = function(filename)
 	local stream_data, stop_stream = lib.files.stream(filename)
 	local queue = nio.control.queue()
@@ -78,6 +82,7 @@ M.stream_xml = function(filename)
 	return queue.get, stop_stream
 end
 
+-- given a handler and a event, call the callback function from handler
 M.dispatch = function(event, handler)
 	if event.event_type == EventType.start then
 		handler:on_start(event.name, event.attr)
