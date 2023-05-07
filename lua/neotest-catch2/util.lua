@@ -22,20 +22,28 @@ end
 
 M.dump = function(filename, x)
 	with(open(filename, "w"), function(file)
-        file:write(vim.inspect(x))
+		file:write(vim.inspect(x))
 	end)
 end
 
 M.write = function(filename, str)
 	with(open(filename, "a"), function(file)
-        file:write(str)
+		file:write(str)
 	end)
 end
 
 M.touch = function(filename)
 	with(open(filename, "w"), function(file)
-        file:write("")
+		file:write("")
 	end)
+end
+
+M.get_file_lines = function(path)
+	local count = 0
+	for _ in io.lines(path) do
+		count = count + 1
+	end
+	return count
 end
 
 return M

@@ -8,6 +8,7 @@ local sep = lib.files.sep
 local positions = require("neotest.lib.positions")
 local result_parser = require("neotest-catch2.result_parser")
 local stream_xml = require("neotest-catch2.stream_xml")
+local catch2 = require("neotest_catch2.catch2_positions")
 local func = require("plenary.functional")
 
 local adapter = { name = "neotest-catch2" }
@@ -16,6 +17,7 @@ adapter.config = {
 	extension = ".cpp",
 	test_patterns = { "^test_", "_test.cpp$" },
 	dir_blacklist_patterns = { "build", "cmake%-build.*", "external" },
+    catch2_version = 3,
 }
 
 lib.positions.contains = function(parent, child)
@@ -87,82 +89,12 @@ function adapter.filter_dir(_, rel_path, root)
 	return t
 end
 
-local parse_state = {
-	header = 0,
-	test_name = 1,
-	test_file = 2,
-	tag = 3,
-	stop = 4,
-}
-
-local function get_file_lines(path)
-	local count = 0
-	for _ in io.lines(path) do
-		count = count + 1
-	end
-	return count
-end
-
 function adapter.discover_positions(path)
-	local sources = cmake.get_executable_sources()
-	if sources == nil then
-		return {}
-	end
-	local executable = sources[path]
-	if executable == nil then
-		return {}
-	end
-	local filename = util.get_file_name(path)
-	local ret = vim.fn.systemlist(executable .. ' -l -v high -# "[#' .. filename .. ']"')
-	local state = parse_state.header
-	local test_name
-	local tests = {
-		{
-			name = util.get_file_name_ext(path),
-			type = "file",
-			id = path,
-			path = path,
-			range = { 0, 0, get_file_lines(path), 0 },
-		},
-	}
-	local file_lines
-	for _, line in ipairs(ret) do
-		if state == parse_state.header and line == "Matching test cases:" then
-			state = parse_state.test_name
-		elseif state == parse_state.test_name then
-			file_lines = {}
-			if line:match("^  ") then
-				test_name = '"' .. util.trim(line) .. '"'
-				state = parse_state.test_file
-			else
-				state = parse_state.stop
-			end
-		elseif state == parse_state.test_file then
-			line = util.trim(line)
-			if line == "(NO DESCRIPTION)" then
-				local file = table.concat(file_lines)
-				local test_file, lineno = file:match("^([^:]+):(%d+)")
-				lineno = tonumber(lineno) - 1
-				table.insert(tests, {
-					name = test_name,
-					type = "test",
-					id = test_file .. "::" .. test_name,
-					path = test_file,
-					range = { lineno, 0, lineno, 0 },
-				})
-				state = parse_state.tag
-			else
-				table.insert(file_lines, line)
-			end
-		elseif state == parse_state.tag then
-			state = parse_state.test_name
-		end
-	end
-	local tree = positions.parse_tree(tests, {
-		nested_tests = true,
-		require_namespaces = false,
-	})
-	return tree
+    if adapter.config.catch2_version == 3 then
+        return catch2.discover_positions_v3(adapter.config, path)
+    else
+        return catch2.discover_positions_v2(adapter.config, path)
+    end
 end
 
 local function get_file_spec(sources, position, dir)
