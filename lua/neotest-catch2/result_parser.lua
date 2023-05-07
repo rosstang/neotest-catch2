@@ -49,12 +49,13 @@ M.new = function(use_queue)
 	local self = {}
 	self.handlers = {}
 	self.nodes_stack = {}
+	self.stop = false
+
 	local add_result
 	if use_queue then
-		self.results = nio.control.queue()
+		self.results = nio.control.queue(1000)
 		add_result = function(r)
-			print("result = ", vim.inspect(r))
-			self.results.put_nowait(r)
+			self.results.put(r)
 		end
 	else
 		self.results = {}
@@ -63,6 +64,14 @@ M.new = function(use_queue)
 		end
 	end
 
+	self.handlers.Catch = {
+		on_start = function(attr)
+			return {}
+		end,
+		on_stop = function(node)
+			self.stop = true
+		end,
+	}
 	self.handlers.TestCase = {
 		on_start = function(attr)
 			local test_name = '"' .. attr.name .. '"'
@@ -89,12 +98,14 @@ M.new = function(use_queue)
 			end
 			if node.errors ~= nil then
 				local errors = {}
-				node.errors = vim.tbl_filter(function(e)
-					return e.filename == node.filename
-				end, node.errors)
 				for _, e in ipairs(node.errors) do
-					table.insert(errors, e.filename .. ":" .. (e.line + 1))
+					if e.line ~= nil then
+						table.insert(errors, e.filename .. ":" .. (e.line + 1))
+					end
 					table.insert(errors, "    " .. e.message)
+					if e.filename ~= node.filename then
+						e.line = nil
+					end
 					e.filename = nil
 				end
 				node.short = table.concat(errors, "\n")
@@ -183,13 +194,26 @@ M.new = function(use_queue)
 		end,
 	}
 
-    self.handlers.FatalErrorCondition = create_error_handler(self, "FatalErrorCondition")
-    self.handlers.Exception = create_error_handler(self, "Exception")
+	self.handlers.FatalErrorCondition = create_error_handler(self, "FatalErrorCondition")
+	self.handlers.Exception = create_error_handler(self, "Exception")
 	self.handlers.StdOut = create_simple_handler(self, "stdout")
 	self.handlers.StdErr = create_simple_handler(self, "stderr")
 	self.handlers.Original = create_simple_handler(self, "original")
 	self.handlers.Expanded = create_simple_handler(self, "expanded")
-	self.handlers.Info = create_simple_handler(self, "info")
+	self.handlers.Info = {
+		on_start = function()
+			return {}
+		end,
+		on_stop = function(node)
+			local parent = self.nodes_stack[#self.nodes_stack]
+			if parent.errors == nil then
+				parent.errors = {}
+			end
+			table.insert(parent.errors, {
+				message = node.text,
+			})
+		end,
+	}
 
 	setmetatable(self, M)
 	return self

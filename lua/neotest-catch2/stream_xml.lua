@@ -12,32 +12,31 @@ local M = {}
 
 M.parse_xml = function(filename, handler)
 	local file = io.open(filename)
-    if file == nil then
-        return {}
-    end
+	if file == nil then
+		return {}
+	end
 	local parser = lxp.new({
 		StartElement = function(_, name, attr)
-            handler:on_start(name, attr)
+			handler:on_start(name, attr)
 		end,
 		EndElement = function(_, name)
-            handler:on_stop(name)
+			handler:on_stop(name)
 		end,
 		CharacterData = function(_, str)
-            handler:on_char(str)
+			handler:on_char(str)
 		end,
 	})
 
-    for l in file:lines() do
-        parser:parse(l)
-    end
-    parser:parse()
-    parser:close()
-    file:close()
-    return handler.results
+	local data = file:read()
+	parser:parse(data)
+	parser:parse()
+	parser:close()
+	file:close()
+	return handler.results
 end
 
 M.stream_xml = function(filename)
-	local stream_data, stop_stream = lib.files.stream_lines(filename)
+	local stream_data, stop_stream = lib.files.stream(filename)
 	local queue = nio.control.queue()
 
 	local parser = lxp.new({
@@ -63,10 +62,8 @@ M.stream_xml = function(filename)
 	})
 
 	local parse = function()
-		for lines in stream_data do
-			for _, l in ipairs(lines) do
-				parser:parse(l)
-			end
+		for s in stream_data do
+			parser:parse(s)
 		end
 		parser:parse()
 		parser:close()
@@ -92,4 +89,3 @@ M.dispatch = function(event, handler)
 end
 
 return M
-

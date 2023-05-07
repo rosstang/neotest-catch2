@@ -8,12 +8,13 @@ local sep = lib.files.sep
 local positions = require("neotest.lib.positions")
 local result_parser = require("neotest-catch2.result_parser")
 local stream_xml = require("neotest-catch2.stream_xml")
+local func = require("plenary.functional")
 
 local adapter = { name = "neotest-catch2" }
 
 lib.positions.contains = function(parent, child)
 	if parent.type == "dir" then
-		return parent.path == child.path or vim.startswith(child.path, parent.path .. require("neotest.lib.file").sep)
+		return parent.path == child.path or vim.startswith(child.path, parent.path .. sep)
 	end
 	if child.type == "dir" then
 		return false
@@ -68,7 +69,7 @@ local function filter_dir(path, root)
 	return t
 end
 
-function adapter.filter_dir(name, rel_path, root)
+function adapter.filter_dir(_, rel_path, root)
 	local t = filter_dir(root .. sep .. rel_path, root)
 	return t
 end
@@ -77,7 +78,6 @@ local parse_state = {
 	header = 0,
 	test_name = 1,
 	test_file = 2,
-	description = 3,
 	tag = 4,
 	stop = 5,
 }
@@ -101,7 +101,6 @@ function adapter.discover_positions(path)
 	end
 	local filename = util.get_file_name(path)
 	local ret = vim.fn.systemlist(executable .. ' -l -v high -# "[#' .. filename .. ']"')
-	-- print("position = ", vim.inspect(ret))
 	local state = parse_state.header
 	local test_name
 	local tests = {
@@ -113,11 +112,12 @@ function adapter.discover_positions(path)
 			range = { 0, 0, get_file_lines(path), 0 },
 		},
 	}
-
+	local file_lines
 	for _, line in ipairs(ret) do
 		if state == parse_state.header and line == "Matching test cases:" then
 			state = parse_state.test_name
 		elseif state == parse_state.test_name then
+			file_lines = {}
 			if line:match("^  ") then
 				test_name = '"' .. util.trim(line) .. '"'
 				state = parse_state.test_file
@@ -126,18 +126,21 @@ function adapter.discover_positions(path)
 			end
 		elseif state == parse_state.test_file then
 			line = util.trim(line)
-			local test_file, lineno = line:match("^([^:]+):(%d+)")
-			lineno = tonumber(lineno) - 1
-			state = parse_state.description
-			table.insert(tests, {
-				name = test_name,
-				type = "test",
-				id = test_file .. "::" .. test_name,
-				path = test_file,
-				range = { lineno, 0, lineno, 0 },
-			})
-		elseif state == parse_state.description then
-			state = parse_state.tag
+			if line == "(NO DESCRIPTION)" then
+				local file = table.concat(file_lines)
+				local test_file, lineno = file:match("^([^:]+):(%d+)")
+				lineno = tonumber(lineno) - 1
+				table.insert(tests, {
+					name = test_name,
+					type = "test",
+					id = test_file .. "::" .. test_name,
+					path = test_file,
+					range = { lineno, 0, lineno, 0 },
+				})
+				state = parse_state.tag
+			else
+				table.insert(file_lines, line)
+			end
 		elseif state == parse_state.tag then
 			state = parse_state.test_name
 		end
@@ -168,35 +171,34 @@ local function get_file_spec(sources, position, dir)
 	}
 end
 
-local function get_dap_strategy(spec, args)
+local function get_dap_strategy(args, spec)
 	if args.strategy ~= "dap" then
 		spec.command = table.concat(spec.commands, " ")
 		util.touch(spec.xml_file)
 		local stream_events, stop_stream = stream_xml.stream_xml(spec.xml_file)
-		spec.stop_stream = stop_stream
+		spec.context = {
+			stop_stream = stop_stream,
+			results = {},
+		}
+		local parser = result_parser.new(true)
 		spec.stream = function()
-			local parser = result_parser.new(true)
 			nio.run(function()
 				for event in stream_events do
 					stream_xml.dispatch(event, parser)
+					if parser.stop then
+						stop_stream()
+						return
+					end
 				end
 			end, function(success, err)
 				if not success then
 					print("stream parsing xml failure: err = " .. err)
 				end
 			end)
-
 			return function()
-				local results = {}
-                while parser.results.size() > 0 do
-                    local item = parser.results.get_nowait()
-                    results[item.name] = item
-                end
-
-                if #results == 0 then
-                    local item = parser.results.get()
-                    results[item.name] = item
-                end
+				local item = parser.results.get()
+				local results = { [item.name] = item }
+				spec.context.results[item.name] = item
 				return results
 			end
 		end
@@ -215,6 +217,7 @@ local function get_dap_strategy(spec, args)
 	}
 	spec.command = nil
 	spec.cwd = nil
+    return spec
 end
 
 function adapter.build_spec(args)
@@ -244,18 +247,13 @@ function adapter.build_spec(args)
 	else
 		table.insert(specs, get_file_spec(sources, position, dir))
 	end
-	local specs1 = {}
-	for _, s in ipairs(specs) do
-		table.insert(specs1, get_dap_strategy(s, args))
-	end
-	return specs1
+	return vim.tbl_map(func.partial(get_dap_strategy, args), specs)
 end
 
-function adapter.results(spec, result)
-	if spec.stop_stream ~= nil then
-		spec.stop_stream()
+function adapter.results(spec, _)
+	if spec.context ~= nil and spec.context.results ~= nil then
+		return spec.context.results
 	end
-
 	local results = {}
 	if not lib.files.exists(spec.xml_file) then
 		return results
@@ -268,7 +266,6 @@ end
 
 setmetatable(adapter, {
 	__call = function()
-		print("catch2 testing called")
 		return adapter
 	end,
 })

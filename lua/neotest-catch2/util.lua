@@ -26,6 +26,12 @@ M.dump = function(filename, x)
 	end)
 end
 
+M.write = function(filename, str)
+	with(open(filename, "a"), function(file)
+        file:write(str)
+	end)
+end
+
 M.touch = function(filename)
 	with(open(filename, "w"), function(file)
         file:write("")
