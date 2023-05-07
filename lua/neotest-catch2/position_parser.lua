@@ -20,28 +20,36 @@ M.new = function()
 	local self = {}
 	self.handlers = {}
 	self.nodes_stack = {}
-	self.stop = false
-	self.tests = {}
+	self.results = {}
 
 	self.handlers.TestCase = {
-		on_start = function()
+		on_start = function(attr)
 			return {}
 		end,
 		on_stop = function(node)
 			local id = node.source_info.file .. "::" .. '"' .. node.name .. '"'
 			local lineno = tonumber(node.source_info.line) - 1
-			table.insert(self.tests, {
-                name = node.name,
-                type = "test",
-                id = id,
-                path = node.source_info.file,
-                range = {lineno, 0, lineno, 0},
-            })
+			table.insert(self.results, {
+				name = node.name,
+				type = "test",
+				id = id,
+				path = node.source_info.file,
+				range = { lineno, 0, lineno, 0 },
+			})
+			print("position results = " .. vim.inspect(self.results))
 		end,
 	}
 
+	self.handlers.SourceInfo = {
+		on_start = function(attr)
+			return {}
+		end,
+		on_stop = function(node)
+			local parent = self.nodes_stack[#self.nodes_stack]
+			parent.source_info = node
+		end,
+	}
 	self.handlers.Name = create_simple_handler(self, "name")
-	self.handlers.SourceInfo = create_simple_handler(self, "source_info")
 	self.handlers.File = create_simple_handler(self, "file")
 	self.handlers.Line = create_simple_handler(self, "line")
 
@@ -80,4 +88,3 @@ M.on_char = function(self, str)
 end
 
 return M
-

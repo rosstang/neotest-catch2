@@ -1,0 +1,12 @@
+#
+#Copyright(C) 2021, Global Futures and Options Ltd
+#
+BasedOnStyle: Google
+AccessModifierOffset: -4
+ColumnLimit: 120
+DerivePointerAlignment: false
+IncludeBlocks: Preserve
+IndentCaseLabels: false
+IndentWidth: 4
+PointerAlignment: Right
+

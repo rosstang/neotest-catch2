@@ -64,11 +64,12 @@ M.new = function(use_queue)
 		end
 	end
 
-	self.handlers.Catch = {
+	self.handlers.Catch2TestRun = {
 		on_start = function(attr)
 			return {}
 		end,
 		on_stop = function(node)
+            print("catch2testrun stop")
 			self.stop = true
 		end,
 	}
@@ -83,6 +84,7 @@ M.new = function(use_queue)
 			}
 		end,
 		on_stop = function(node)
+            print("test case stop = ", vim.inspect(node))
 			if node.stdout ~= nil or node.stderr ~= nil then
 				local output_file = async.fn.tempname() .. ".out"
 				node.output = output_file
@@ -119,6 +121,7 @@ M.new = function(use_queue)
 			node.stderr = nil
 			node.sections = nil
 			add_result(node)
+            print("test case add = ", vim.inspect(node))
 		end,
 	}
 

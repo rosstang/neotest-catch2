@@ -1,6 +1,7 @@
 local lib = require("neotest.lib")
 local nio = require("nio")
 local lxp = require("lxp")
+local util = require("neotest-catch2.util")
 
 local EventType = {
 	start = "start",
@@ -29,11 +30,12 @@ M.parse_xml = function(filename, handler)
 		end,
 	})
 
-	local data = file:read()
+	local data = file:read("a")
 	parser:parse(data)
 	parser:parse()
 	parser:close()
 	file:close()
+    print("parse_xml results = " .. vim.inspect(handler.results))
 	return handler.results
 end
 

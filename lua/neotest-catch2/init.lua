@@ -5,7 +5,6 @@ local nio = require("nio")
 local cmake = require("neotest-catch2.cmake")
 local util = require("neotest-catch2.util")
 local sep = lib.files.sep
-local positions = require("neotest.lib.positions")
 local result_parser = require("neotest-catch2.result_parser")
 local stream_xml = require("neotest-catch2.stream_xml")
 local catch2 = require("neotest-catch2.catch2_positions")
@@ -104,10 +103,11 @@ local function get_file_spec(sources, position, dir)
 	local xml_file = async.fn.tempname() .. ".xml"
 	local commands = { sources[position.path], "-r", "xml", "-#", "-o", xml_file }
 	local fname = util.get_file_name(position.path)
-	local spec = "[#" .. fname .. "]"
+	local spec = '"[#' .. fname .. "]"
 	if position.type == "test" then
 		spec = spec .. position.name
 	end
+    spec = spec .. '"'
 	table.insert(commands, spec)
 	return {
 		commands = commands,
@@ -144,9 +144,11 @@ local function get_dap_strategy(args, spec)
 				local item = parser.results.get()
 				local results = { [item.name] = item }
 				spec.context.results[item.name] = item
+                print("get results = " .. vim.inspect(results))
 				return results
 			end
 		end
+        print("spec = " .. vim.inspect(spec))
 		return spec
 	end
 	local program = table.remove(spec.commands, 1)
@@ -197,6 +199,7 @@ end
 
 function adapter.results(spec, _)
 	if spec.context ~= nil and spec.context.results ~= nil then
+        print("context.results = " .. vim.inspect(spec.context.results))
 		return spec.context.results
 	end
 	local results = {}
