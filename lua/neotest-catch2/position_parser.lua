@@ -27,7 +27,7 @@ M.new = function()
 			return {}
 		end,
 		on_stop = function(node)
-			local id = node.source_info.file .. "::" .. '"' .. node.name .. '"'
+			local id = node.source_info.file .. "::" .. node.name
 			local lineno = tonumber(node.source_info.line) - 1
 			table.insert(self.results, {
 				name = node.name,
@@ -46,6 +46,7 @@ M.new = function()
 		end,
 		on_stop = function(node)
 			local parent = self.nodes_stack[#self.nodes_stack]
+            node.file = util.normalize(node.file)
 			parent.source_info = node
 		end,
 	}

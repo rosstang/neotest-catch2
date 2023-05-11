@@ -25,7 +25,7 @@ local create_error_handler = function(self, error_name)
 	return {
 		on_start = function(attr)
 			return {
-				filename = attr.filename,
+				filename = util.normalize(attr.filename),
 				line = tonumber(attr.line),
 			}
 		end,
@@ -75,11 +75,12 @@ M.new = function(use_queue)
 	}
 	self.handlers.TestCase = {
 		on_start = function(attr)
-			local test_name = '"' .. attr.name .. '"'
+			local test_name = attr.name
+            local filename = util.normalize(attr.filename)
 			return {
 				test_name = test_name,
-				name = attr.filename .. "::" .. test_name,
-				filename = attr.filename,
+				name = filename .. "::" .. test_name,
+				filename = filename,
 				line = tonumber(attr.line),
 			}
 		end,
@@ -148,7 +149,7 @@ M.new = function(use_queue)
 			local section_name = '"' .. util.to_string(attr.name) .. '"'
 			return {
 				section_name = section_name,
-				filename = attr.filename,
+				filename = util.normalize(attr.filename),
 				line = tonumber(attr.line),
 			}
 		end,
@@ -171,7 +172,7 @@ M.new = function(use_queue)
 	self.handlers.Expression = {
 		on_start = function(attr)
 			return {
-				filename = attr.filename,
+				filename = util.normalize(attr.filename),
 				line = tonumber(attr.line),
 			}
 		end,

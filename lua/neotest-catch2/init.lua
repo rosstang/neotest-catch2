@@ -16,7 +16,7 @@ adapter.config = {
 	extension = ".cpp",
 	test_patterns = { "^test_", "_test.cpp$" },
 	dir_blacklist_patterns = { "build", "cmake%-build.*", "external" },
-    catch2_version = 3,
+    catch2_version = 2,
 }
 
 lib.positions.contains = function(parent, child)
@@ -89,6 +89,11 @@ function adapter.filter_dir(_, rel_path, root)
 end
 
 function adapter.discover_positions(path)
+    local version = catch2.get_catch2_version(path)
+    if version == nil then
+        return {}
+    end
+    adapter.config.catch2_version = tonumber(version)
     if adapter.config.catch2_version == 3 then
         return catch2.discover_positions_v3(adapter.config, path)
     else
@@ -101,16 +106,15 @@ local function get_file_spec(sources, position, dir)
 		return {}
 	end
 	local xml_file = async.fn.tempname() .. ".xml"
-	local commands = { sources[position.path], "-r", "xml", "-#", "-o", xml_file }
+	local command = { sources[position.path], "-r", "xml", "-#", "-o", xml_file }
 	local fname = util.get_file_name(position.path)
-	local spec = '"[#' .. fname .. "]"
+	local spec = '[#' .. fname .. "]"
 	if position.type == "test" then
 		spec = spec .. position.name
 	end
-    spec = spec .. '"'
-	table.insert(commands, spec)
+	table.insert(command, spec)
 	return {
-		commands = commands,
+		command = command,
 		cwd = dir,
 		xml_file = xml_file,
 	}
@@ -118,7 +122,6 @@ end
 
 local function get_dap_strategy(args, spec)
 	if args.strategy ~= "dap" then
-		spec.command = table.concat(spec.commands, " ")
 		util.touch(spec.xml_file)
 		local stream_events, stop_stream = stream_xml.stream_xml(spec.xml_file)
 		spec.context = {
@@ -151,8 +154,8 @@ local function get_dap_strategy(args, spec)
         print("spec = " .. vim.inspect(spec))
 		return spec
 	end
-	local program = table.remove(spec.commands, 1)
-	table.insert(spec.commands, "-b")
+	local program = table.remove(spec.command, 1)
+	table.insert(spec.command, "-b")
 	spec.strategy = {
 		name = "Launch",
 		type = "codelldb",
@@ -160,7 +163,7 @@ local function get_dap_strategy(args, spec)
 		program = program,
 		cwd = spec.cwd,
 		stopOnEntry = false,
-		args = spec.commands,
+		args = spec.command,
 	}
 	spec.command = nil
 	spec.cwd = nil
@@ -186,7 +189,7 @@ function adapter.build_spec(args)
 		for target, _ in pairs(files) do
 			local xml_file = async.fn.tempname() .. ".xml"
 			table.insert(specs, {
-				commands = { target, "-r", "xml", "-o", xml_file },
+				command = { target, "-r", "xml", "-o", xml_file },
 				cwd = dir,
 				xml_file = xml_file,
 			})

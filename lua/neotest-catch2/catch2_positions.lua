@@ -7,7 +7,28 @@ local async = require("neotest.async")
 
 local M = {}
 
+function M.get_catch2_version(path)
+	path = util.normalize(path)
+	local sources = cmake.get_executable_sources()
+	if sources == nil then
+		return {}
+	end
+	local executable = sources[path]
+	if executable == nil then
+		return {}
+	end
+	local lines = vim.fn.systemlist(executable .. " -?")
+    for _, l in ipairs(lines) do
+        local m = l:match("Catch2? v(%d+)%.")
+        if m ~= nil then
+            return m
+        end
+    end
+    return nil
+end
+
 function M.discover_positions_v3(config, path)
+	path = util.normalize(path)
 	local sources = cmake.get_executable_sources()
 	if sources == nil then
 		return {}
@@ -83,7 +104,7 @@ function M.discover_positions_v2(config, path)
 		elseif state == parse_state.test_name then
 			file_lines = {}
 			if line:match("^  ") then
-				test_name = '"' .. util.trim(line) .. '"'
+				test_name = util.trim(line)
 				state = parse_state.test_file
 			else
 				state = parse_state.stop

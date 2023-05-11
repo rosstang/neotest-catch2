@@ -35,7 +35,6 @@ M.parse_xml = function(filename, handler)
 	parser:parse()
 	parser:close()
 	file:close()
-    print("parse_xml results = " .. vim.inspect(handler.results))
 	return handler.results
 end
 

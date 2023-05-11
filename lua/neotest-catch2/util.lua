@@ -46,4 +46,8 @@ M.get_file_lines = function(path)
 	return count
 end
 
+M.normalize = function(path)
+    return vim.loop.fs_realpath(path)
+end
+
 return M
