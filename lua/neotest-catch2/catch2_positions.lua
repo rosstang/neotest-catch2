@@ -18,13 +18,13 @@ function M.get_catch2_version(path)
 		return {}
 	end
 	local lines = vim.fn.systemlist(executable .. " -?")
-    for _, l in ipairs(lines) do
-        local m = l:match("Catch2? v(%d+)%.")
-        if m ~= nil then
-            return m
-        end
-    end
-    return nil
+	for _, l in ipairs(lines) do
+		local m = l:match("Catch2? v(%d+)%.")
+		if m ~= nil then
+			return m
+		end
+	end
+	return nil
 end
 
 function M.discover_positions_v3(config, path)
@@ -39,7 +39,7 @@ function M.discover_positions_v3(config, path)
 	end
 	local filename = util.get_file_name(path)
 	local xml_file = async.fn.tempname() .. ".xml"
-	local args = {
+	local command = {
 		executable,
 		"--list-tests",
 		"-r",
@@ -47,9 +47,8 @@ function M.discover_positions_v3(config, path)
 		"-#",
 		"-o",
 		xml_file,
-		'"[#' .. filename .. ']"',
+		"[#" .. filename .. "]",
 	}
-	local command = table.concat(args, " ")
 	vim.fn.system(command)
 	local parser = position_parser.new()
 	local all_tests = xml.parse_xml(xml_file, parser)
@@ -85,7 +84,15 @@ function M.discover_positions_v2(config, path)
 		return {}
 	end
 	local filename = util.get_file_name(path)
-	local ret = vim.fn.systemlist(executable .. ' -l -v high -# "[#' .. filename .. ']"')
+    local command = {
+        executable,
+        "-l",
+        "-v",
+        "high",
+        "-#",
+        "[#" .. filename .. "]"
+    }
+	local ret = vim.fn.systemlist(command)
 	local state = parse_state.header
 	local test_name
 	local tests = {

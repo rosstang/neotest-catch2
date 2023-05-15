@@ -1,5 +1,5 @@
+#include "catch2test.hpp"
 #include <unistd.h>
-#include <catch2/catch_template_test_macros.hpp>
 #include <iostream>
 #include <type_traits>
 
