@@ -135,6 +135,7 @@ local function get_dap_strategy(args, spec)
 					stream_xml.dispatch(event, parser)
 					if parser.stop then
 						stop_stream()
+                        spec.context.stop_stream = nil
 						return
 					end
 				end
@@ -147,11 +148,9 @@ local function get_dap_strategy(args, spec)
 				local item = parser.results.get()
 				local results = { [item.name] = item }
 				spec.context.results[item.name] = item
-                print("get results = " .. vim.inspect(results))
 				return results
 			end
 		end
-        print("spec = " .. vim.inspect(spec))
 		return spec
 	end
 	local program = table.remove(spec.command, 1)
@@ -201,8 +200,10 @@ function adapter.build_spec(args)
 end
 
 function adapter.results(spec, _)
+    if spec.context ~= nil and spec.context.stop_stream ~= nil then
+        spec.context.stop_stream()
+    end
 	if spec.context ~= nil and spec.context.results ~= nil then
-        print("context.results = " .. vim.inspect(spec.context.results))
 		return spec.context.results
 	end
 	local results = {}

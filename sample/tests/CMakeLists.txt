@@ -11,4 +11,3 @@ include(CTest)
 catch_discover_tests(testing)
 
 target_compile_definitions(testing PRIVATE CATCH2_VERSION_MAJOR=${CATCH2_MAJOR_VERSION})
-    

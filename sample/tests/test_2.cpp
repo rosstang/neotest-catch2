@@ -24,3 +24,39 @@ TEMPLATE_TEST_CASE("Testing template tests", "", int, bool, char) {
         REQUIRE(a == 10);
     }
 }
+
+TEST_CASE("Test1 3") {
+    print_lines(10000);
+}
+
+TEST_CASE("Test1 4") {
+    print_lines(10000);
+}
+
+TEST_CASE("Test1 5") {
+    print_lines(10000);
+}
+
+TEST_CASE("Test1 6") {
+    print_lines(10000);
+}
+
+TEST_CASE("Test1 7") {
+    print_lines(10000);
+}
+
+TEST_CASE("Test1 8") {
+    print_lines(10000);
+}
+
+TEST_CASE("Test1 9") {
+    print_lines(10000);
+}
+
+TEST_CASE("Test1 10") {
+    print_lines(10000);
+}
+
+TEST_CASE("Test1 11") {
+    print_lines(10000);
+}

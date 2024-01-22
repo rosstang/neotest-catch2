@@ -36,7 +36,6 @@ M.new = function()
 				path = node.source_info.file,
 				range = { lineno, 0, lineno, 0 },
 			})
-			print("position results = " .. vim.inspect(self.results))
 		end,
 	}
 

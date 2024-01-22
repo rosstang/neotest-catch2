@@ -65,13 +65,13 @@ M.stream_xml = function(filename)
 			})
 		end,
 	})
+    M.parser = parser
 
 	local parse = function()
 		for s in stream_data do
 			parser:parse(s)
+			parser:parse("\n")
 		end
-		parser:parse()
-		parser:close()
 	end
 
 	nio.run(parse, function(success, err)
@@ -80,7 +80,11 @@ M.stream_xml = function(filename)
 		end
 	end)
 
-	return queue.get, stop_stream
+	return queue.get, function()
+        stop_stream()
+        parser:parse()
+        parser:close()
+    end
 end
 
 -- given a handler and a event, call the callback function from handler
